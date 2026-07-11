@@ -69,17 +69,17 @@ docker compose up --build
 
 First build takes a few minutes (Maven pulls dependencies per service). Once healthy:
 
-| Service              | URL                              |
-|----------------------|-----------------------------------|
-| Dashboard             | http://localhost:3000            |
-| Order API             | http://localhost:8081/api/orders |
-| Inventory API          | http://localhost:8082/api/products |
-| Payment API            | http://localhost:8083/api/payments |
-| Analytics API (ETL)    | http://localhost:8084/api/analytics/revenue-by-product |
-| Kafka UI               | http://localhost:8085            |
-| Jaeger (traces)        | http://localhost:16686           |
-| Prometheus             | http://localhost:9090            |
-| Grafana                | http://localhost:3001 (admin/admin) |
+| Service             | URL                                                    |
+| ------------------- | ------------------------------------------------------ |
+| Dashboard           | http://localhost:3000                                  |
+| Order API           | http://localhost:8081/api/orders                       |
+| Inventory API       | http://localhost:8082/api/products                     |
+| Payment API         | http://localhost:8083/api/payments                     |
+| Analytics API (ETL) | http://localhost:8084/api/analytics/revenue-by-product |
+| Kafka UI            | http://localhost:8085                                  |
+| Jaeger (traces)     | http://localhost:16686                                 |
+| Prometheus          | http://localhost:9090                                  |
+| Grafana             | http://localhost:3001 (admin/admin)                    |
 
 Open the dashboard, place an order, and watch it move through
 `pending → stock reserved → confirmed` live via SSE. Then open Jaeger and search for
@@ -107,28 +107,25 @@ npm install
 npm run dev
 ```
 
-## What to say about this on a resume
+## Project structure
 
-- Designed and built an event-driven e-commerce platform with three Spring Boot
-  microservices communicating exclusively via Kafka, implementing a choreography-based
-  saga with automatic compensation on inventory or payment failure
-- Built a real-time Next.js dashboard consuming live order-state events over
-  Server-Sent Events, backed by a Spring Boot REST API
-- Instrumented all services with OpenTelemetry distributed tracing (Jaeger) and
-  Prometheus/Grafana metrics dashboards, including Kafka consumer lag and per-service
-  request latency
-- Built a streaming ETL pipeline that denormalizes Kafka order events into a
-  star-schema analytics table and a scheduled aggregation job, exposed via a
-  reporting API
-- Worked across two relational database engines (PostgreSQL, MySQL) in the same
-  system, with optimistic locking to prevent overselling under concurrent load
+```
+order-service/       Spring Boot, Postgres — places orders, publishes order.created,
+                      closes the saga loop, serves the SSE stream to the frontend
+inventory-service/    Spring Boot, Postgres — reserves/rejects stock on order.created
+payment-service/      Spring Boot, MySQL    — charges (or fails) payment on inventory.reserved
+etl-service/           Spring Boot, Postgres — consumes every event, loads a star-schema
+                      fact table, rolls up daily revenue on a schedule
+frontend/              Next.js — live order dashboard + order placement form
+observability/         Prometheus + Grafana provisioning config
+init-scripts/          Postgres multi-database init script
+```
 
-## Natural next steps (good "what would you add" answers in an interview)
+## Known limitations / things not implemented
 
-- An API gateway (Spring Cloud Gateway) in front of the three services instead of the
-  frontend calling each directly
-- Dead-letter topics + retry policies on the Kafka consumers
-- Outbox pattern instead of dual-write (currently each service writes to its DB, then
-  publishes — an outbox table would make that atomic)
-- Contract testing between services (e.g. Pact) for the event schemas
-- Kubernetes manifests / Helm chart instead of docker-compose for a production story
+- No API gateway — the frontend calls each backend service directly on its own port
+- No dead-letter topics or retry policies on the Kafka consumers
+- No outbox pattern — each service writes to its DB, then publishes to Kafka as a
+  separate step (not atomic)
+- No contract testing between services for the event schemas
+- Runs via docker-compose only, no Kubernetes manifests

@@ -39,8 +39,6 @@ public class InventoryService {
             }
 
             if (allAvailable) {
-                // Second pass: actually decrement, now that we know everything is available.
-                // @Version on Product guards against lost updates from concurrent orders.
                 for (OrderEvent.LineItem item : orderEvent.getItems()) {
                     Product product = productRepository.findById(item.getProductId()).orElseThrow();
                     product.setAvailableQuantity(product.getAvailableQuantity() - item.getQuantity());
@@ -52,7 +50,8 @@ public class InventoryService {
             rejectionReason = "Concurrent reservation conflict, please retry";
         }
 
-        InventoryEvent result = new InventoryEvent(orderEvent.getOrderId(), allAvailable, rejectionReason, Instant.now());
+        InventoryEvent result = new InventoryEvent(orderEvent.getOrderId(), allAvailable, rejectionReason,
+                Instant.now());
         inventoryEventProducer.publish(result);
     }
 }

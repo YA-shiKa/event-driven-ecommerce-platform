@@ -20,5 +20,5 @@ public class Product {
     private Integer availableQuantity;
 
     @Version
-    private Long version; // optimistic locking so concurrent reservations don't oversell stock
+    private Long version;
 }
